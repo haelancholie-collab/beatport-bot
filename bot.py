@@ -4,6 +4,8 @@ import os
 import re
 import json
 from datetime import datetime, timedelta
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # Bot Token
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -329,6 +331,27 @@ def search_track(message):
         bot.send_message(message.chat.id, response)
 
 
+# Health Check Server für Render (damit Web Service funktioniert)
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b'Beatport Bot is running!')
+    
+    def log_message(self, format, *args):
+        # Keine Logs für Health Checks
+        pass
+
+
+def run_health_server():
+    """Startet einen einfachen HTTP Server für Render Health Checks"""
+    port = int(os.environ.get('PORT', 10000))
+    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    print(f"✅ Health Check Server läuft auf Port {port}")
+    server.serve_forever()
+
+
 # Bot starten
 if __name__ == "__main__":
     try:
@@ -339,6 +362,10 @@ if __name__ == "__main__":
         if not BEATPORT_USERNAME or not BEATPORT_PASSWORD:
             print("❌ Fehler: BEATPORT_USERNAME und BEATPORT_PASSWORD environment variables müssen gesetzt sein!")
             exit(1)
+
+        # Health Check Server in separatem Thread starten
+        health_thread = Thread(target=run_health_server, daemon=True)
+        health_thread.start()
 
         print("🎵 Beatport Search Bot (API v4) ist gestartet...")
         print("Bereit für Suchanfragen!")
