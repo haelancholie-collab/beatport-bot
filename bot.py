@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timedelta
 from threading import Thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 # Bot Token
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -352,6 +353,19 @@ def run_health_server():
     server.serve_forever()
 
 
+def keep_alive():
+    """Keep-Alive Funktion - hält den Bot wach"""
+    try:
+        print("⏰ Keep-Alive: Aktualisiere Beatport Token...")
+        token = get_beatport_token()
+        if token:
+            print("✅ Keep-Alive: Token erfolgreich aktualisiert")
+        else:
+            print("⚠️ Keep-Alive: Token-Aktualisierung fehlgeschlagen")
+    except Exception as e:
+        print(f"❌ Keep-Alive Fehler: {e}")
+
+
 # Bot starten
 if __name__ == "__main__":
     try:
@@ -374,6 +388,12 @@ if __name__ == "__main__":
         # Health Check Server in separatem Thread starten
         health_thread = Thread(target=run_health_server, daemon=True)
         health_thread.start()
+
+        # Keep-Alive Scheduler starten (alle 10 Minuten)
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(keep_alive, 'interval', minutes=10)
+        scheduler.start()
+        print("✅ Keep-Alive Scheduler gestartet (alle 10 Minuten)")
 
         print("🎵 Beatport Search Bot (API v4) ist gestartet...")
         print("Bereit für Suchanfragen!")
