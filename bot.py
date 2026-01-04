@@ -363,13 +363,21 @@ if __name__ == "__main__":
             print("❌ Fehler: BEATPORT_USERNAME und BEATPORT_PASSWORD environment variables müssen gesetzt sein!")
             exit(1)
 
+        # Lösche alle Webhooks und stoppe alte Polling-Sessions
+        print("🧹 Bereinige alte Bot-Instanzen...")
+        try:
+            bot.remove_webhook()
+            print("✅ Webhooks gelöscht")
+        except:
+            pass
+
         # Health Check Server in separatem Thread starten
         health_thread = Thread(target=run_health_server, daemon=True)
         health_thread.start()
 
         print("🎵 Beatport Search Bot (API v4) ist gestartet...")
         print("Bereit für Suchanfragen!")
-        bot.infinity_polling()
+        bot.infinity_polling(timeout=10, long_polling_timeout=5)
     except KeyboardInterrupt:
         print("\nBot wird beendet...")
     except Exception as e:
