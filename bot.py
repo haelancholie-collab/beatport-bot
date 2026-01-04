@@ -379,11 +379,20 @@ if __name__ == "__main__":
 
         # Lösche alle Webhooks und stoppe alte Polling-Sessions
         print("🧹 Bereinige alte Bot-Instanzen...")
-        try:
-            bot.remove_webhook()
-            print("✅ Webhooks gelöscht")
-        except:
-            pass
+        max_retries = 3
+        for i in range(max_retries):
+            try:
+                bot.remove_webhook()
+                print("✅ Webhooks gelöscht")
+                # Warte kurz um sicherzustellen dass alte Instanzen gestoppt sind
+                import time
+                time.sleep(2)
+                break
+            except Exception as e:
+                print(f"⚠️ Versuch {i+1}/{max_retries} Webhook zu löschen fehlgeschlagen: {e}")
+                if i < max_retries - 1:
+                    import time
+                    time.sleep(3)
 
         # Health Check Server in separatem Thread starten
         health_thread = Thread(target=run_health_server, daemon=True)
@@ -397,9 +406,30 @@ if __name__ == "__main__":
 
         print("🎵 Beatport Search Bot (API v4) ist gestartet...")
         print("Bereit für Suchanfragen!")
-        bot.infinity_polling(timeout=10, long_polling_timeout=5)
+
+        # Starte Polling mit Retry-Logik bei 409 Fehler
+        while True:
+            try:
+                bot.infinity_polling(timeout=10, long_polling_timeout=5, restart_on_change=False)
+                break
+            except Exception as e:
+                if "409" in str(e) or "Conflict" in str(e):
+                    print("⚠️ 409 Konflikt erkannt - warte 5 Sekunden und versuche erneut...")
+                    import time
+                    time.sleep(5)
+                    try:
+                        bot.remove_webhook()
+                        time.sleep(2)
+                    except:
+                        pass
+                else:
+                    raise
     except KeyboardInterrupt:
         print("\nBot wird beendet...")
+        try:
+            scheduler.shutdown(wait=False)
+        except:
+            pass
     except Exception as e:
         print(f"Fehler: {e}")
         import traceback
